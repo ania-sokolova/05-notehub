@@ -1,112 +1,65 @@
-import { useEffect, useState } from "react";
-import { useDebounce } from "use-debounce";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import css from "./App.module.css";
+import { useDebounce } from '../../hooks/useDebounce';
+import { fetchNotes } from '../../services/noteService';
 
-import SearchBox from "../SearchBox/SearchBox";
-import Pagination from "../Pagination/Pagination";
-import NoteList from "../NoteList/NoteList";
-import Modal from "../Modal/Modal";
-import NoteForm from "../NoteForm/NoteForm";
+import  SearchBox  from '../SearchBox/SearchBox';
+import { NoteList } from '../NoteList/NoteList';
+import  Pagination  from '../Pagination/Pagination';
+import { Modal } from '../Modal/Modal';
+import { NoteForm } from '../NoteForm/NoteForm';
+import { Loader } from "../Loader/Loader";
+import { ErrorMessage } from "../ErrorMessage/ErrorMessage";
 
-import {
-  fetchNotes,
-  createNote,
-  deleteNote,
-  type CreateNotePayload,
-} from "../../services/noteService";
-
-const PER_PAGE = 12;
 
 export default function App() {
-  const queryClient = useQueryClient();
-
   const [page, setPage] = useState<number>(1);
-  const [search, setSearch] = useState<string>("");
-  const [debouncedSearch] = useDebounce(search, 400);
-
+  const [query, setQuery] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+
+  const debouncedQuery = useDebounce(query, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedQuery]);
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["notes", page, debouncedSearch],
-    queryFn: () =>
-      fetchNotes({
-        page,
-        perPage: PER_PAGE,
-        search: debouncedSearch.trim() ? debouncedSearch : undefined,
-      }),
-    placeholderData: (prev) => prev, 
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['notes', debouncedQuery, page],
+    queryFn: () => fetchNotes({ page, query: debouncedQuery }),
+    placeholderData: (prev) => prev,
   });
 
   const notes = data?.notes ?? [];
-  const totalPages = data?.totalPages ?? 1;
-
-  const createMutation = useMutation({
-    mutationFn: (payload: CreateNotePayload) => createNote(payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["notes"] });
-      setIsModalOpen(false);
-      setPage(1);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["notes"] });
-    },
-  });
-
-  const handleCreate = async (values: CreateNotePayload) => {
-    await createMutation.mutateAsync(values);
-  };
-
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const totalPages = data?.totalPages ?? 0;
 
   return (
-    <div className={css.app}>
-      <header className={css.toolbar}>
-        <SearchBox value={search} onChange={setSearch} />
+    <div>
+      <button type="button" onClick={() => setIsModalOpen(true)}>
+        Add note
+      </button>
+
+      <SearchBox onChange={setQuery} value={query} />
+
+      {isLoading && <Loader />}
+{isError && <ErrorMessage />}
 
       
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      {!isLoading && !isError && <NoteList notes={notes} />}
 
-        <button className={css.button} onClick={() => setIsModalOpen(true)}>
-          Create note +
-        </button>
-      </header>
+<Pagination
+  page={page}
+  totalPages={totalPages}
+  onPageChange={setPage}
+/>
 
-      {isLoading && <p>Loading...</p>}
-
-      {isError && (
-        <p>
-          Error loading notes:{" "}
-          {error instanceof Error ? error.message : "Unknown error"}
-        </p>
+      {isModalOpen && (
+        <Modal onClose={() => setIsModalOpen(false)}>
+          <NoteForm onClose={() => setIsModalOpen(false)} />
+        </Modal>
       )}
-
-      {!isLoading && !isError && notes.length > 0 && (
-        <NoteList
-          notes={notes}
-          onDelete={handleDelete}
-          deletingId={deleteMutation.variables ?? null}
-        />
-      )}
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <NoteForm
-          onCancel={() => setIsModalOpen(false)}
-          isSubmitting={createMutation.isPending}
-          onSubmit={handleCreate}
-        />
-      </Modal>
     </div>
   );
-}
+};
+
