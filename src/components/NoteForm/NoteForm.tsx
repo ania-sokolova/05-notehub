@@ -20,8 +20,16 @@ interface NoteFormValues {
 const TAG_OPTIONS: NoteTag[] = ["Todo", "Work", "Personal", "Meeting", "Shopping"];
 
 const validationSchema = Yup.object({
-  title: Yup.string().trim().min(2, "Too short").max(50, "Too long").required("Required"),
-  content: Yup.string().trim().min(2, "Too short").max(500, "Too long").required("Required"),
+  title: Yup.string()
+    .trim()
+    .min(3, "Too short") 
+    .max(50, "Too long")
+    .required("Required"),
+
+  content: Yup.string()
+    .trim()
+    .max(500, "Too long"), 
+    
   tag: Yup.mixed<NoteTag>().oneOf(TAG_OPTIONS).required("Required"),
 });
 

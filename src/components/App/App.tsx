@@ -37,7 +37,7 @@ export default function App() {
   return (
     <div>
       <button type="button" onClick={() => setIsModalOpen(true)}>
-        Add note
+        Create note
       </button>
 
       <SearchBox onChange={setQuery} value={query} />
